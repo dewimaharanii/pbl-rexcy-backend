@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+
+class Produksi extends Model
+{
+    protected $table      = 'produksi';
+    protected $primaryKey = 'Id_Produksi';
+    public    $incrementing = false;
+    protected $keyType    = 'string';
+    public    $timestamps = false;
+
+    protected $fillable = [
+        'Id_Produksi',
+        'Id_Produsen',
+        'Nama_Produk',
+        'Jumlah_Stok',
+        'Harga_Produksi',
+        'Lokasi_Tangkap',
+        'Catatan',
+        'Dibuat_Pada',
+        'Gambar'
+    ];
+
+    public function produsen()
+    {
+        return $this->belongsTo(Produsen::class, 'Id_Produsen', 'Id_Produsen');
+    }
+
+    protected $appends = ['gambar_url'];
+
+    public function getGambarUrlAttribute()
+    { 
+        if ($this->Gambar) {
+            return url('storage/' . $this->Gambar);
+        }
+        return null;
+    }
+}
