@@ -6,6 +6,7 @@ use App\Models\Produsen;
 use App\Models\Produk;
 use App\Models\Permintaan;
 use App\Models\Transaksi;
+use App\Models\PencairanDana;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -193,7 +194,6 @@ class ProdusenController extends Controller
             if ($produk->Gambar && Storage::disk('public')->exists($produk->Gambar)) Storage::disk('public')->delete($produk->Gambar);
 
             $produk->Gambar = $request->file('Gambar')->store('produk', 'public');
-
         }
 
 
@@ -350,5 +350,195 @@ class ProdusenController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function getRiwayatTotalSelesai(Request $request) { /* kode riwayat gabungan kamu... */ }
+    public function getRiwayatTotalSelesai(Request $request)
+
+    {
+
+        $produsen   = $request->user();
+
+        $productIds = \App\Models\Produk::where('Id_Produsen', $produsen->Id_Produsen)
+
+                        ->pluck('Id_Produksi')->toArray();
+
+
+
+        $trx = \App\Models\Transaksi::whereIn('Id_Produksi', $productIds)
+
+                    ->whereIn('Status', ['Selesai', 'Ditolak', 'selesai', 'ditolak'])
+
+                    ->with(['produk', 'mitra'])->get();
+
+
+
+        $mappedTrx = $trx->map(function ($item) {
+
+            return [
+
+                'id_permintaan'      => $item->Id_Transaksi,
+
+                'nama_mitra'         => $item->mitra ? $item->mitra->Nama_Mitra : 'Mitra',
+
+                'nama_produk'        => $item->produk ? $item->produk->Nama_Produk : '-',
+
+                'jumlah_permintaan'  => $item->Jumlah,
+
+                'status'             => strtolower($item->Status),
+
+                'tanggal_permintaan' => $item->Tanggal_Transaksi,
+
+                'total_harga'        => $item->Total_Harga,
+
+                'estimasi_total'     => $item->Total_Harga,
+
+                'jenis_pesanan'      => 'pembelian'
+
+            ];
+
+        });
+
+
+
+        $pmt = \App\Models\Permintaan::whereIn('Id_Produksi', $productIds)
+
+                    ->whereIn('Status', ['Selesai', 'Ditolak', 'selesai', 'ditolak'])
+
+                    ->with(['produk', 'mitra'])->get();
+
+
+
+        $mappedPmt = $pmt->map(function ($item) {
+
+            $hargaProduk = $item->produk ? $item->produk->Harga_Produksi : 0;
+
+            $total       = $item->Jumlah_Diminta * $hargaProduk;
+
+            return [
+                'id_permintaan'      => $item->Id_Permintaan,
+                'nama_mitra'         => $item->mitra ? $item->mitra->Nama_Mitra : 'Mitra',
+                'nama_produk'        => $item->produk ? $item->produk->Nama_Produk : '-',
+                'jumlah_permintaan'  => $item->Jumlah_Diminta,
+                'status'             => strtolower($item->Status),
+                'tanggal_permintaan' => $item->Tanggal_Permintaan,
+                'total_harga'        => $total,
+                'estimasi_total'     => $total,
+                'jenis_pesanan'      => 'permintaan'
+            ];
+        });
+
+        $gabungan = $mappedTrx->concat($mappedPmt)->sortByDesc('tanggal_permintaan')->values();
+        return response()->json(['success' => true, 'data' => $gabungan]);
+    }
+
+    // ── PENCAIRAN DANA ────────────────────────────────────────
+
+public function ajukanPencairan(Request $request)
+{
+    $request->validate([
+        'jumlah_dana'           => 'required|numeric|min:1',
+        'nama_bank'             => 'required|string',
+        'no_rekening'           => 'required|string',
+        'nama_pemilik_rekening' => 'required|string',
+    ]);
+
+    $idProdusen = $request->user()->Id_Produsen;
+
+    $pendapatanTrx = Transaksi::whereHas('produk', function ($q) use ($idProdusen) {
+            $q->where('Id_Produsen', $idProdusen);
+        })
+        ->whereIn('Status', ['Status', 'Selesai'])
+        ->sum('Total_Harga');
+
+    $pendapatanPmt = Permintaan::with('produk')
+        ->whereHas('produk', function ($q) use ($idProdusen) {
+            $q->where('Id_Produsen', $idProdusen);
+        })
+        ->whereIn('Status', ['Status', 'Selesai'])
+        ->get()
+        ->sum(fn($item) => $item->Jumlah_Diminta * ($item->produk->Harga_Produksi ?? 0));
+
+    $totalPendapatan = $pendapatanTrx + $pendapatanPmt;
+
+    $totalPencairan = PencairanDana::where('id_produsen', $idProdusen)
+        ->whereIn('status', ['Menunggu', 'Disetujui', 'Selesai'])
+        ->sum('jumlah_dana');
+
+    $saldoTersedia = $totalPendapatan - $totalPencairan;
+
+    if ($request->jumlah_dana > $saldoTersedia) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Saldo tidak cukup. Saldo tersedia: Rp ' . number_format($saldoTersedia, 0, ',', '.'),
+        ], 400);
+    }
+
+    $last  = PencairanDana::orderBy('id', 'desc')->first();
+    $lastNumber = $last ? (int) substr($last->id_pencairan, 3) : 0;
+    $newId = 'PCR' . str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+
+    $pencairan = PencairanDana::create([
+        'id_pencairan'          => $newId,
+        'id_produsen'           => $idProdusen,
+        'jumlah_dana'           => $request->jumlah_dana,
+        'nama_bank'             => $request->nama_bank,
+        'no_rekening'           => $request->no_rekening,
+        'nama_pemilik_rekening' => $request->nama_pemilik_rekening,
+        'status'                => 'Menunggu',
+        'tanggal_pengajuan'     => now(),
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Pengajuan pencairan dana berhasil dikirim',
+        'data'    => $pencairan,
+    ], 201);
+}
+
+public function getRiwayatPencairan(Request $request)
+{
+    $idProdusen = $request->user()->Id_Produsen;
+
+    $data = PencairanDana::where('id_produsen', $idProdusen)
+            ->orderBy('tanggal_pengajuan', 'desc')
+            ->get();
+
+    return response()->json(['success' => true, 'data' => $data]);
+}
+
+public function getSaldoProdusen(Request $request)
+{
+    $idProdusen = $request->user()->Id_Produsen;
+
+    $pendapatanTrx = Transaksi::whereHas('produk', function ($q) use ($idProdusen) {
+            $q->where('Id_Produsen', $idProdusen);
+        })
+        ->whereIn('Status', ['Status', 'Selesai'])
+        ->sum('Total_Harga');
+
+    $pendapatanPmt = Permintaan::with('produk')
+        ->whereHas('produk', function ($q) use ($idProdusen) {
+            $q->where('Id_Produsen', $idProdusen);
+        })
+        ->whereIn('Status', ['Status', 'Selesai'])
+        ->get()
+        ->sum(fn($item) => $item->Jumlah_Diminta * ($item->produk->Harga_Produksi ?? 0));
+
+    $totalPendapatan = $pendapatanTrx + $pendapatanPmt;
+
+    $totalPencairan = PencairanDana::where('id_produsen', $idProdusen)
+        ->whereIn('status', ['Menunggu', 'Disetujui', 'Selesai'])
+        ->sum('jumlah_dana');
+
+    $saldoTersedia = $totalPendapatan - $totalPencairan;
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'total_pendapatan' => (int) $totalPendapatan,
+            'total_pencairan'  => (int) $totalPencairan,
+            'saldo_tersedia'   => (int) $saldoTersedia,
+        ],
+    ]);
+}
+
+
 }

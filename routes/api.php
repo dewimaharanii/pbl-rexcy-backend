@@ -64,6 +64,11 @@ Route::prefix('produsen')->group(function () {
         //Tab Riwayat Gabungan Produsen
         Route::get('/riwayat-all', [ProdusenController::class, 'getRiwayatTotalSelesai']);
         Route::post('/permintaan/{id}/bayar', [MitraHilirController::class, 'bayarPermintaan']);
+
+        //Pencairan Dana (PRODUSEN)
+        Route::get('/saldo', [ProdusenController::class, 'getSaldoProdusen']);
+        Route::post('/pencairan', [ProdusenController::class, 'ajukanPencairan']);
+        Route::get('/pencairan', [ProdusenController::class, 'getRiwayatPencairan']);
     });
 });
 
@@ -90,8 +95,10 @@ Route::prefix('admin')->group(function () {
         Route::delete('/mitra/{id}', [AdminController::class, 'hapusMitra']);
         Route::get('/produksi', [AdminController::class, 'getProduksi']);
         Route::get('/transaksi', [AdminController::class, 'getTransaksi']);
+
+        //Pencairan Dana (ADMIN)
+        Route::get('/pencairan', [AdminController::class, 'getPencairan']);
+        Route::post('/pencairan/{id}/proses', [AdminController::class, 'prosesPencairan']);
+        Route::post('/pencairan/{id}/selesai', [AdminController::class, 'selesaikanPencairan']);
     });
 });
-
-// 🚀 RUTE PUBLIK: BYPASS CORS UNTUK GAMBAR (WAJIB DI LUAR MIDDLEWARE)
-Route::get('/file/bukti-transfer/{filename}', [\App\Http\Controllers\FileController::class, 'show']);

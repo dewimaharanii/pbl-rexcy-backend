@@ -9,6 +9,7 @@ use App\Models\Produk;
 use App\Models\Permintaan;
 use App\Models\Transaksi;
 use App\Models\Pembayaran;
+use App\Models\PencairanDana;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB; // Tambahan untuk deteksi error database
@@ -281,6 +282,79 @@ class AdminController extends Controller
         ]);
     } catch (\Exception $e) {
         return response()->json(['success' => false, 'message' => 'Error Validasi: ' . $e->getMessage()]);
+    }
+}
+
+// ── PENCAIRAN DANA (ADMIN) ─────────────────────────────────
+
+public function getPencairan()
+{
+    $data = PencairanDana::with('produsen')
+            ->orderBy('tanggal_pengajuan', 'desc')
+            ->get()
+            ->map(fn($item) => [
+                'id_pencairan'          => $item->id_pencairan,
+                'nama_produsen'         => $item->produsen->Nama_Produsen ?? '-',
+                'jumlah_dana'           => (int) $item->jumlah_dana,
+                'nama_bank'             => $item->nama_bank,
+                'no_rekening'           => $item->no_rekening,
+                'nama_pemilik_rekening' => $item->nama_pemilik_rekening,
+                'status'                => $item->status,
+                'keterangan_admin'      => $item->keterangan_admin,
+                'tanggal_pengajuan'     => $item->tanggal_pengajuan,
+                'tanggal_diproses'      => $item->tanggal_diproses,
+            ]);
+
+    return response()->json(['success' => true, 'data' => $data]);
+}
+
+public function prosesPencairan(Request $request, $id)
+{
+    try {
+        $aksi = $request->input('action', 'terima'); // 'terima' atau 'tolak'
+
+        $pencairan = PencairanDana::where('id_pencairan', $id)->first();
+        if (!$pencairan) {
+            return response()->json(['success' => false, 'message' => 'Pengajuan tidak ditemukan'], 404);
+        }
+
+        if ($pencairan->status !== 'Menunggu') {
+            return response()->json(['success' => false, 'message' => 'Pengajuan ini sudah diproses sebelumnya'], 400);
+        }
+
+        $pencairan->status = $aksi === 'terima' ? 'Disetujui' : 'Ditolak';
+        $pencairan->keterangan_admin = $request->input('keterangan', null);
+        $pencairan->tanggal_diproses = now();
+        $pencairan->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $aksi === 'terima' ? 'Pencairan dana disetujui' : 'Pencairan dana ditolak',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+    }
+}
+
+public function selesaikanPencairan($id)
+{
+    try {
+        $pencairan = PencairanDana::where('id_pencairan', $id)->first();
+        if (!$pencairan) {
+            return response()->json(['success' => false, 'message' => 'Pengajuan tidak ditemukan'], 404);
+        }
+
+        if ($pencairan->status !== 'Disetujui') {
+            return response()->json(['success' => false, 'message' => 'Pengajuan harus berstatus Disetujui dulu'], 400);
+        }
+
+        $pencairan->status = 'Selesai';
+        $pencairan->tanggal_diproses = now();
+        $pencairan->save();
+
+        return response()->json(['success' => true, 'message' => 'Pencairan dana ditandai selesai']);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     }
 }
    
