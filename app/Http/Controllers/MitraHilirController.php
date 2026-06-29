@@ -115,6 +115,9 @@ class MitraHilirController extends Controller
             'Catatan'            => $request->Catatan ?? '',
             'Status'             => 'Pending',
             'Tanggal_Permintaan' => now(),
+            'nama_pemesan'       => $request->nama_pemesan ?? $mitra->Nama_Mitra ?? '',
+            'no_telp'            => $request->no_telp ?? $mitra->No_HP ?? '',
+            'alamat_pemesan'     => $request->alamat ?? $mitra->Alamat ?? '',
         ]);
 
         return response()->json([
@@ -146,6 +149,10 @@ class MitraHilirController extends Controller
                 'tanggal_permintaan' => $item->Tanggal_Permintaan,
                 'estimasi_total'     => $totalHarga,
                 'total_harga'        => $totalHarga, 
+                'nama_pemesan'       => $item->nama_pemesan ?? '',
+                'no_telp'            => $item->no_telp ?? '',
+                'alamat_pemesan'     => $item->alamat_pemesan ?? '',
+                'catatan'            => $item->Catatan ?? '',
             ];
         });
 
@@ -206,14 +213,20 @@ class MitraHilirController extends Controller
             'status' => strtolower($i->Status), 
             'total' => $i->Total_Harga, 
             'tanggal' => $i->Tanggal_Transaksi, 
-            'produk' => $i->produk->Nama_Produk ?? 'Produk'
+            'produk' => $i->produk->Nama_Produk ?? 'Produk',
+            'nama_pemesan' => $i->nama_pemesan ?? '',
+            'no_telp' => $i->no_telp ?? '',
+            'alamat_pemesan' => $i->alamat_pemesan ?? '',
         ])->concat($pmt->map(fn($i) => [
             'id' => $i->Id_Permintaan, 
             'jenis' => 'permintaan', 
             'status' => strtolower($i->Status), 
             'total' => ($i->Jumlah_Diminta * ($i->produk->Harga_Produksi ?? 0)), 
             'tanggal' => $i->Tanggal_Permintaan, 
-            'produk' => $i->produk->Nama_Produk ?? 'Produk'
+            'produk' => $i->produk->Nama_Produk ?? 'Produk',
+            'nama_pemesan' => $i->nama_pemesan ?? '',
+            'no_telp' => $i->no_telp ?? '',
+            'alamat_pemesan' => $i->alamat_pemesan ?? '',
         ]))->sortByDesc('tanggal')->values();
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -237,10 +250,25 @@ class MitraHilirController extends Controller
                 return response()->json(['success' => false, 'message' => 'GAGAL: Bukti transfer wajib diunggah!']);
             }
 
+            // Simpan data pemesan dari request jika dikirim
+            if ($request->filled('nama_pemesan')) {
+                $pesanan->nama_pemesan = $request->nama_pemesan;
+            }
+            if ($request->filled('no_telp')) {
+                $pesanan->no_telp = $request->no_telp;
+            }
+            if ($request->filled('alamat')) {
+                $pesanan->alamat_pemesan = $request->alamat;
+            }
+            if ($request->filled('catatan')) {
+                $pesanan->Catatan = $request->catatan;
+            }
+            $pesanan->save();
+
             // 🚀 MASUKKAN KE TABEL PEMBAYARAN (Ini yang membuat PMT muncul di Admin)
             \Illuminate\Support\Facades\DB::table('pembayaran')->insert([
                 'id_transaksi'      => $id,
-                'jenis'             => 'permintaan', // Pastikan namanya "permintaan"
+                'jenis'             => 'permintaan',
                 'nama_mitra'        => $pesanan->mitra->Nama_Mitra ?? 'Mitra Hilir',
                 'nama_produk'       => $pesanan->produk->Nama_Produk ?? 'Produk Laut',
                 'jumlah_bayar'      => $pesanan->Jumlah_Diminta * ($pesanan->produk->Harga_Produksi ?? 0),

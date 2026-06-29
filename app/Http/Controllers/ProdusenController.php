@@ -251,7 +251,10 @@ class ProdusenController extends Controller
                 'status'             => strtolower($item->Status),
                 'tanggal_permintaan' => $item->Tanggal_Permintaan,
                 'estimasi_total'     => $item->Jumlah_Diminta * ($item->produk ? $item->produk->Harga_Produksi : 0),
-                'jenis_pesanan'      => 'permintaan'
+                'jenis_pesanan'      => 'permintaan',
+                'nama_pemesan'       => $item->nama_pemesan ?? '',
+                'no_telp'            => $item->no_telp ?? '',
+                'alamat_pemesan'     => $item->alamat_pemesan ?? '',
             ];
         });
         return response()->json(['success' => true, 'data' => $mapped]);
@@ -316,7 +319,10 @@ class ProdusenController extends Controller
                 'status'             => strtolower($item->Status),
                 'tanggal_permintaan' => $item->Tanggal_Transaksi,
                 'estimasi_total'     => $item->Total_Harga,
-                'jenis_pesanan'      => 'pembelian'
+                'jenis_pesanan'      => 'pembelian',
+                'nama_pemesan'       => $item->nama_pemesan ?? '',
+                'no_telp'            => $item->no_telp ?? '',
+                'alamat_pemesan'     => $item->alamat_pemesan ?? '',
             ];
         });
         return response()->json(['success' => true, 'data' => $mapped]);
@@ -390,7 +396,13 @@ class ProdusenController extends Controller
 
                 'estimasi_total'     => $item->Total_Harga,
 
-                'jenis_pesanan'      => 'pembelian'
+                'jenis_pesanan'      => 'pembelian',
+
+                'nama_pemesan'       => $item->nama_pemesan ?? '',
+
+                'no_telp'            => $item->no_telp ?? '',
+
+                'alamat_pemesan'     => $item->alamat_pemesan ?? '',
 
             ];
 
@@ -421,7 +433,14 @@ class ProdusenController extends Controller
                 'tanggal_permintaan' => $item->Tanggal_Permintaan,
                 'total_harga'        => $total,
                 'estimasi_total'     => $total,
-                'jenis_pesanan'      => 'permintaan'
+                'jenis_pesanan'      => 'permintaan',
+
+                'nama_pemesan'       => $item->nama_pemesan ?? '',
+
+                'no_telp'            => $item->no_telp ?? '',
+
+                'alamat_pemesan'     => $item->alamat_pemesan ?? '',
+
             ];
         });
 

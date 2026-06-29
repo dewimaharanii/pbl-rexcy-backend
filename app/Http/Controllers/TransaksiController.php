@@ -32,6 +32,9 @@ class TransaksiController extends Controller
             $jumlah     = $request->input('jumlah')      ?? $request->input('Jumlah');
             $totalHarga = $request->input('total_harga') ?? $request->input('Total_Harga') ?? 0;
             $catatan    = $request->input('catatan')     ?? $request->input('Catatan', '');
+            $namaPemesan = $request->input('nama_pemesan') ?? $request->input('Nama_Pemesan', '');
+            $noTelp     = $request->input('no_telp')     ?? $request->input('No_Telp', '');
+            $alamat     = $request->input('alamat')      ?? $request->input('Alamat_Pemesan', $request->input('Alamat', ''));
 
             // Buat Transaksi
             Transaksi::create([
@@ -42,6 +45,10 @@ class TransaksiController extends Controller
                 'Total_Harga'       => $totalHarga,
                 'Status'            => 'Menunggu Validasi',
                 'Tanggal_Transaksi' => now(),
+                'catatan'           => $catatan,
+                'nama_pemesan'      => $namaPemesan,
+                'no_telp'           => $noTelp,
+                'alamat_pemesan'    => $alamat,
             ]);
 
             // Masukkan ke Tabel Pembayaran untuk Admin
@@ -89,6 +96,10 @@ class TransaksiController extends Controller
                 'tanggal_permintaan' => $item->Tanggal_Transaksi,
                 'total_harga'        => $item->Total_Harga,
                 'jenis_pesanan'      => 'pembelian',
+                'nama_pemesan'       => $item->nama_pemesan ?? '',
+                'no_telp'            => $item->no_telp ?? '',
+                'alamat_pemesan'     => $item->alamat_pemesan ?? '',
+                'catatan'            => $item->catatan ?? '',
             ];
         });
 

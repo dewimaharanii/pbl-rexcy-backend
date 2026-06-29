@@ -16,7 +16,8 @@ class Permintaan extends Model
 
     protected $fillable = [
         'Id_Permintaan', 'Id_Mitra', 'Id_Produksi', 
-        'Jumlah_Diminta', 'Status', 'Tanggal_Permintaan', 'Catatan'
+        'Jumlah_Diminta', 'Status', 'Tanggal_Permintaan', 'Catatan',
+        'nama_pemesan', 'no_telp', 'alamat_pemesan'
     ];
 
     // Relasi ke Produk

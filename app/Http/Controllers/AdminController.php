@@ -199,6 +199,9 @@ class AdminController extends Controller
                     'jenis'              => 'pembelian',
                     'konfirmasi_mitra'   => $item->Status === 'Selesai' ? 'sudah_sampai' : null,
                     'konfirmasi_admin'   => null,
+                    'nama_pemesan'       => $item->nama_pemesan ?? '',
+                    'no_telp'            => $item->no_telp ?? '',
+                    'alamat_pemesan'     => $item->alamat_pemesan ?? '',
                 ]);
 
         $pmt = Permintaan::with(['mitra', 'produk.produsen'])
@@ -216,6 +219,9 @@ class AdminController extends Controller
                     'jenis'              => 'permintaan',
                     'konfirmasi_mitra'   => $item->Status === 'Selesai' ? 'sudah_sampai' : null,
                     'konfirmasi_admin'   => null,
+                    'nama_pemesan'       => $item->nama_pemesan ?? '',
+                    'no_telp'            => $item->no_telp ?? '',
+                    'alamat_pemesan'     => $item->alamat_pemesan ?? '',
                 ]);
 
         $gabungan = $trx->concat($pmt)->sortByDesc('tanggal')->values();
@@ -228,20 +234,36 @@ class AdminController extends Controller
     public function getPembayaran()
     {
         try {
-            // Mengambil SEMUA riwayat secara mutlak dari tabel pembayaran
             $data = DB::table('pembayaran')
                 ->orderBy('id', 'desc')
                 ->get()
                 ->map(function($item) {
+                    // Cari tanggal pembuatan dari tabel asal (transaksi atau permintaan)
+                    $tanggalPembuatan = null;
+                    if (str_starts_with($item->id_transaksi ?? '', 'PMT')) {
+                        $pmt = DB::table('permintaan')
+                            ->where('Id_Permintaan', $item->id_transaksi)
+                            ->select('Tanggal_Permintaan')
+                            ->first();
+                        $tanggalPembuatan = $pmt ? $pmt->Tanggal_Permintaan : null;
+                    } else {
+                        $trx = DB::table('transaksi')
+                            ->where('Id_Transaksi', $item->id_transaksi)
+                            ->select('Tanggal_Transaksi')
+                            ->first();
+                        $tanggalPembuatan = $trx ? $trx->Tanggal_Transaksi : null;
+                    }
+
                     return [
-                        'id_pesanan' => $item->id_transaksi,
-                        'jenis'      => $item->jenis, // 'pembelian' atau 'permintaan'
-                        'mitra'      => $item->nama_mitra ?? '-',
-                        'produk'     => $item->nama_produk ?? '-',
-                        'total'      => $item->jumlah_bayar,
-                        'tanggal'    => $item->tanggal_bayar,
-                        'status'     => $item->status_pembayaran ?? 'Menunggu Konfirmasi',
-                        'bukti'      => $item->bukti_transfer, // Isinya path foto
+                        'id_pesanan'        => $item->id_transaksi,
+                        'jenis'             => $item->jenis,
+                        'mitra'             => $item->nama_mitra ?? '-',
+                        'produk'            => $item->nama_produk ?? '-',
+                        'total'             => $item->jumlah_bayar,
+                        'tanggal'           => $item->tanggal_bayar,
+                        'tanggal_pembuatan' => $tanggalPembuatan,
+                        'status'            => $item->status_pembayaran ?? 'Menunggu Konfirmasi',
+                        'bukti'             => $item->bukti_transfer,
                     ];
                 });
 
@@ -271,7 +293,7 @@ class AdminController extends Controller
         } else {
             $pesanan = \App\Models\Transaksi::where('Id_Transaksi', $id)->first();
             if ($pesanan) {
-                $pesanan->Status = $aksi === 'terima' ? 'Dibayar' : 'Pending';
+                $pesanan->Status = $aksi === 'terima' ? 'Dibayar' : 'Ditolak';
                 $pesanan->save();
             }
         }

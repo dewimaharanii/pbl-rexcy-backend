@@ -23,7 +23,11 @@ class Transaksi extends Model
         'Jumlah',
         'Total_Harga',
         'Status',
-        'Tanggal_Transaksi'
+        'Tanggal_Transaksi',
+        'catatan',
+        'nama_pemesan',
+        'no_telp',
+        'alamat_pemesan'
     ];
 
     // FIX 1: Tambahkan Relasi ke Produk agar Produsen tahu ini barang miliknya
