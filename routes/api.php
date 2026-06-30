@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MitraHilirController;
 use App\Http\Controllers\ProdusenController;
 use App\Http\Controllers\TransaksiController;
-use App\Http\Controllers\AdminController; 
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\FileController;
 
 // ==========================================
 // RUTE MITRA HILIR (PEMBELI)
@@ -31,7 +32,11 @@ Route::prefix('mitra')->group(function () {
         //Transaksi & Pembayaran
         Route::get('/pesanan-all', [MitraHilirController::class, 'getPesananMitraAll']);
         Route::post('/pembayaran/{id}', [MitraHilirController::class, 'bayarPermintaan']);
+
     });
+    // Lupa Password (tidak perlu auth)
+    Route::post('/forgot-password', [MitraHilirController::class, 'kirimToken']);
+    Route::post('/reset-password', [MitraHilirController::class, 'resetPassword']);
 });
 
 // ==========================================
@@ -70,6 +75,9 @@ Route::prefix('produsen')->group(function () {
         Route::post('/pencairan', [ProdusenController::class, 'ajukanPencairan']);
         Route::get('/pencairan', [ProdusenController::class, 'getRiwayatPencairan']);
     });
+    // Lupa Password (tidak perlu auth)
+    Route::post('/forgot-password', [ProdusenController::class, 'kirimToken']);
+    Route::post('/reset-password', [ProdusenController::class, 'resetPassword']);
 });
 
 // ==========================================
@@ -101,4 +109,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/pencairan/{id}/proses', [AdminController::class, 'prosesPencairan']);
         Route::post('/pencairan/{id}/selesai', [AdminController::class, 'selesaikanPencairan']);
     });
+});
+
+// ── File serving (CORS-friendly) ──────────────────────────
+Route::prefix('file')->group(function () {
+    Route::get('/produk/{filename}', [FileController::class, 'produk']);
+    Route::get('/bukti/{filename}', [FileController::class, 'bukti']);
 });

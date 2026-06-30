@@ -264,6 +264,9 @@ class AdminController extends Controller
                         'tanggal_pembuatan' => $tanggalPembuatan,
                         'status'            => $item->status_pembayaran ?? 'Menunggu Konfirmasi',
                         'bukti'             => $item->bukti_transfer,
+                        'bukti_url'         => $item->bukti_transfer
+                            ? url('api/file/bukti/' . basename($item->bukti_transfer))
+                            : null,
                     ];
                 });
 

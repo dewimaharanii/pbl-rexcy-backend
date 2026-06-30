@@ -24,13 +24,14 @@ class Produk extends Model
         return $this->belongsTo(Produsen::class, 'Id_Produsen', 'Id_Produsen');
     }
 
-    // Akses gambar untuk Flutter
+    // Akses gambar untuk Flutter (via API route — CORS-friendly)
     protected $appends = ['gambar_url'];
 
     public function getGambarUrlAttribute()
     {
         if ($this->Gambar) {
-            return url('storage/' . $this->Gambar);
+            $filename = basename($this->Gambar);
+            return url('api/file/produk/' . $filename);
         }
         return null;
     }

@@ -10,6 +10,9 @@ use App\Models\PencairanDana;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class ProdusenController extends Controller
 {
@@ -557,6 +560,78 @@ public function getSaldoProdusen(Request $request)
             'saldo_tersedia'   => (int) $saldoTersedia,
         ],
     ]);
+}
+
+// ── LUPA PASSWORD ─────────────────────────────────────────
+public function kirimToken(Request $request)
+{
+    try {
+        $email = $request->input('email');
+        if (!$email) {
+            return response()->json(['success' => false, 'message' => 'Email harus diisi']);
+        }
+
+        $user = Produsen::where('Username', $email)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Email tidak ditemukan']);
+        }
+
+        $token = Str::random(60);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $email],
+            ['token' => $token, 'created_at' => now()]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token reset berhasil dibuat',
+            'token' => $token,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+public function resetPassword(Request $request)
+{
+    try {
+        $email = $request->input('email');
+        $token = $request->input('token');
+        $password = $request->input('password');
+
+        if (!$email || !$token || !$password) {
+            return response()->json(['success' => false, 'message' => 'Email, token, dan password baru harus diisi']);
+        }
+
+        if (strlen($password) < 6) {
+            return response()->json(['success' => false, 'message' => 'Password minimal 6 karakter']);
+        }
+
+        $record = DB::table('password_reset_tokens')->where('email', $email)->first();
+        if (!$record || $record->token !== $token) {
+            return response()->json(['success' => false, 'message' => 'Token tidak valid']);
+        }
+
+        $expiresAt = Carbon::parse($record->created_at)->addHour();
+        if (now()->greaterThan($expiresAt)) {
+            return response()->json(['success' => false, 'message' => 'Token sudah kedaluwarsa']);
+        }
+
+        $user = Produsen::where('Username', $email)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User tidak ditemukan']);
+        }
+
+        $user->Kata_Sandi = Hash::make($password);
+        $user->save();
+
+        DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+        return response()->json(['success' => true, 'message' => 'Password berhasil direset']);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()]);
+    }
 }
 
 
